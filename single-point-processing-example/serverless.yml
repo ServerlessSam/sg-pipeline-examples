@@ -1,0 +1,32 @@
+service: single-point-processing-example
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  runtime: nodejs18.x
+
+functions:
+  imgProcessor:
+    handler: index.handler
+    events:
+      - s3: inbound-animals-bucket
+    destinations:
+      onSuccess: 
+        type: sns
+        arn:
+          Ref: SuccessTopic
+      onFailure: 
+        type: sns
+        arn:
+          Ref: FailureTopic
+
+resources:
+  Resources:
+    SuccessTopic:
+      Type: AWS::SNS::Topic
+      Properties:
+        TopicName: SuccessTopic
+    FailureTopic:
+      Type: AWS::SNS::Topic
+      Properties:
+        TopicName: FailureTopic
