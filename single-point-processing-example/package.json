@@ -5,6 +5,7 @@
   "author": "",
   "license": "MIT",
   "devDependencies": {
+    "serverless": "^3.29.0",
     "serverless-lift": "^1.1.2"
   }
 }
