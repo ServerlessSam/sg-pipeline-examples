@@ -1,5 +1,5 @@
 service: single-point-processing-example
-frameworkVersion: '3'
+frameworkVersion: "3"
 
 provider:
   name: aws
@@ -8,20 +8,35 @@ provider:
 functions:
   imgProcessor:
     handler: index.handler
-    events:
-      - s3: inbound-animals-bucket
     destinations:
-      onSuccess: 
+      onSuccess:
         type: sns
         arn:
           Ref: SuccessTopic
-      onFailure: 
+      onFailure:
         type: sns
         arn:
           Ref: FailureTopic
 
 resources:
   Resources:
+    animalsBucket:
+      Type: "AWS::S3::Bucket"
+      Properties:
+        AccessControl: Private
+        BucketName: 
+          Fn::Join:
+            - "-"
+            - - animals-bucket
+              - Fn::Select:
+                - 4
+                - Fn::Split:
+                  - "-"
+                  - Fn::Select:
+                    - 2
+                    - Fn::Split:
+                      - "/"
+                      - !Ref AWS::StackId
     SuccessTopic:
       Type: AWS::SNS::Topic
       Properties:
