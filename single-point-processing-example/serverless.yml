@@ -8,6 +8,14 @@ provider:
 functions:
   imgProcessor:
     handler: index.handler
+    events:
+      - s3:
+          bucket: !Ref animalsBucket
+          event: s3:ObjectCreated:*
+          rules:
+            - prefix: raw/
+          existing: true
+          forceDeploy: true
     destinations:
       onSuccess:
         type: sns
