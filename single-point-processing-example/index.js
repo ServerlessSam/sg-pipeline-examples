@@ -1,13 +1,44 @@
+const { RekognitionClient, DetectLabelsCommand } = require("@aws-sdk/client-rekognition")
 
 /**
  * Used to identify if a PNG is a dog or cat
  *
  * @param {String} bucket_name name of S3 bucket
  * @param {String} key key name within bucket (including prefix)
- * @returns {String} string of dog or cat
+ * @returns {String} string of "Dog", "Cat" or "Neither"
  */
-const dogOrCat = (bucketName, key) => {
-  return "dog"
+const dogOrCat = (bucket_name, key) => {
+  const client = new RekognitionClient({ region: "us-east-1" });
+
+  const params = {
+    Image: {
+      S3Object: {
+        Bucket: bucket_name,
+        Name: key,
+      },
+    },
+    MinConfidence: 50,
+    Settings: {
+      GeneralLabels: {
+        LabelInclusionFilters: [
+          "Dog", "Cat"
+        ]
+      }
+    }
+  }
+  const command = new DetectLabelsCommand(params);
+  
+  client.send(command).then(
+    (data) => {
+      if (data.Labels.length > 0) {
+        console.log(`I am ${data.Labels[0].Confidence}% sure this is a ${data.Labels[0].Name}!`)
+        return data.Labels[0].Name
+      }
+      else {
+        return "Neither"
+      }
+    }
+  );
 }
 
 /**
@@ -37,8 +68,6 @@ const handler = async (event) => {
   // Get the object from the event and show its content type
   const bucket = event.Records[0].s3.bucket.name;
   const key = decodeURIComponent(event.Records[0].s3.object.key.replace(/\+/g, ' '));
-  console.log(key) //debug
-  console.log(bucket) //debug
   
   const animal = dogOrCat(bucket, key)
   const new_resized_obj_arn = resize_and_save(bucket, key, animal)

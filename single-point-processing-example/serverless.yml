@@ -4,6 +4,10 @@ frameworkVersion: "3"
 provider:
   name: aws
   runtime: nodejs18.x
+  iam:
+    role:
+      managedPolicies:
+        - arn:aws:iam::aws:policy/AmazonRekognitionReadOnlyAccess
 
 functions:
   imgProcessor:
