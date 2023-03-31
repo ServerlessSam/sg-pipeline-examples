@@ -8,6 +8,7 @@ provider:
     role:
       managedPolicies:
         - arn:aws:iam::aws:policy/AmazonRekognitionReadOnlyAccess
+        - arn:aws:iam::aws:policy/AmazonRDSDataFullAccess
 
 functions:
   imgProcessor:
@@ -57,3 +58,54 @@ resources:
       Type: AWS::SNS::Topic
       Properties:
         TopicName: FailureTopic
+    RdsVpc:
+      Type: AWS::EC2::VPC
+      Properties:
+        CidrBlock: "10.0.0.0/16"
+    RdsSubnet1:
+      Type: AWS::EC2::Subnet
+      Properties:
+        VpcId: !Ref RdsVpc
+        CidrBlock: "10.0.1.0/24"
+        AvailabilityZone: !Select [0, !GetAZs ""]
+    RdsSubnet2:
+      Type: AWS::EC2::Subnet
+      Properties:
+        VpcId: !Ref RdsVpc
+        CidrBlock: "10.0.2.0/24"
+        AvailabilityZone: !Select [1, !GetAZs ""]
+    RdsSubnetGroup:
+      Type: AWS::RDS::DBSubnetGroup
+      Properties:
+        DBSubnetGroupName: dog-or-cat-db-group
+        DBSubnetGroupDescription: Dogs or Cats?
+        SubnetIds: 
+          - !Ref RdsSubnet1
+          - !Ref RdsSubnet2
+    RdsSecurityGroup:
+      Type: AWS::EC2::SecurityGroup
+      Properties:
+        GroupDescription: "Security group for RDS instance"
+        VpcId: !Ref RdsVpc
+        SecurityGroupIngress:
+          - IpProtocol: tcp
+            FromPort: 443
+            ToPort: 443
+            CidrIp: 0.0.0.0/0
+    TheDb:
+      Type: "AWS::RDS::DBCluster"
+      Properties:
+        Engine: aurora
+        EngineVersion: "5.6.10a"
+        EngineMode: serverless
+        DBClusterIdentifier: dog-or-cat-db-cluster
+        MasterUsername: admin
+        MasterUserPassword: woofwoof123
+        DBSubnetGroupName: !Ref RdsSubnetGroup
+        AvailabilityZones:
+          - !Select [0, !GetAZs ""]
+          - !Select [1, !GetAZs ""]
+        DatabaseName: animals
+        EnableHttpEndpoint: true
+
+
