@@ -9,6 +9,7 @@
     "serverless-lift": "^1.1.2"
   },
   "dependencies": {
-    "@aws-sdk/client-rekognition": "^3.301.0"
+    "@aws-sdk/client-rekognition": "^3.301.0",
+    "serverless-plugin-scripts": "^1.0.2"
   }
 }

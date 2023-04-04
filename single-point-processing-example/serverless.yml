@@ -1,6 +1,9 @@
 service: single-point-processing-example
 frameworkVersion: "3"
 
+plugins:
+  - serverless-plugin-scripts
+
 provider:
   name: aws
   runtime: nodejs18.x
@@ -92,14 +95,14 @@ resources:
             FromPort: 443
             ToPort: 443
             CidrIp: 0.0.0.0/0
-    TheDb:
+    AnimalsDb:
       Type: "AWS::RDS::DBCluster"
       Properties:
         Engine: aurora
         EngineVersion: "5.6.10a"
         EngineMode: serverless
         DBClusterIdentifier: dog-or-cat-db-cluster
-        MasterUsername: admin
+        MasterUsername: adminuser
         MasterUserPassword: woofwoof123
         DBSubnetGroupName: !Ref RdsSubnetGroup
         AvailabilityZones:
@@ -107,5 +110,17 @@ resources:
           - !Select [1, !GetAZs ""]
         DatabaseName: animals
         EnableHttpEndpoint: true
+  Outputs:
+    AnimalDbArn:
+      Value: !Sub "arn:${AWS::Partition}:rds:${AWS::Region}:${AWS::AccountId}:cluster:${AnimalsDb}"
+
+# custom:
+#   scripts:
+#     hooks:
+#       'after:aws:deploy:deploy:createStack': |
+#         STACK_NAME=${self:service}-${sls:stage}
+#         DB_SECRET_ARN=$(aws cloudformation describe-stacks --stack-name $STACK_NAME --query "Stacks[0].Outputs[?OutputKey=='AnimalDbCredsArn'].OutputValue" --output text)
+#         DB_ARN=$(aws cloudformation describe-stacks --stack-name $STACK_NAME --query "Stacks[0].Outputs[?OutputKey=='AnimalDbArn'].OutputValue" --output text)
+#         aws rds-data batch-execute-statement --resource-arn $DB_ARN --secret-arn $DB_SECRET_ARN --sql 'SELECT @@VERSION' --database animals
 
 
