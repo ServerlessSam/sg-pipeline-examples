@@ -4,13 +4,67 @@ frameworkVersion: "3"
 provider:
   name: aws
   runtime: nodejs18.x
+  region: ${opt:region, "us-east-2"}
+  stage: ${opt:stage, "dev"}
   iam:
     role:
+      name: ${self:service}-${self:provider.stage}-role
+      statements:
+        - Effect: "Allow"
+          Action:
+            - "s3:*"
+          Resource: "*"
+        - Effect: Allow
+          Action:
+            - xray:PutTraceSegments
+            - xray:PutTelemetryRecords
+            - xray:GetSamplingRules
+            - xray:GetSamplingTargets
+            - xray:GetSamplingStatisticSummaries
+          Resource: "*"
+        - Effect: "Allow"
+          Action:
+            - logs:CreateLogStream
+            - logs:CreateLogGroup
+            - logs:PutLogEvents
+          Resource:
+            - arn:aws:logs:${self:provider.region}:${aws:accountId}:log-group:/aws/lambda/${self:custom.lambda.imgProcessor.name}:*
       managedPolicies:
         - arn:aws:iam::aws:policy/AmazonRekognitionReadOnlyAccess
+  environment:
+    REGION: ${self:provider.region}
+
+plugins:
+  - serverless-prune-plugin
+  - serverless-esbuild
+
+package:
+  individually: true
+
+custom:
+  lambda:
+    imgProcessor:
+      name: ${self:service}-${self:provider.stage}-imgProcessor
+      arn: arn:aws:lambda:${self:provider.region}:#{AWS::AccountId}:function:${self:custom.lambda.imgProcessor.name}
+  s3:
+    animalsBucket:
+      name: !Ref animalsBucket
+  prune:
+    automatic: true
+    number: 1
+  esbuild:
+    bundle: true
+    minify: false
+    sourcemap: true
+    external:
+      - sharp
+    packagerOptions:
+      scripts:
+        - npm install --arch=x64 --platform=linux sharp
 
 functions:
   imgProcessor:
+    name: ${self:custom.lambda.imgProcessor.name}
     handler: index.handler
     events:
       - s3:
@@ -36,19 +90,19 @@ resources:
       Type: "AWS::S3::Bucket"
       Properties:
         AccessControl: Private
-        BucketName: 
+        BucketName:
           Fn::Join:
             - "-"
             - - animals-bucket
               - Fn::Select:
-                - 4
-                - Fn::Split:
-                  - "-"
-                  - Fn::Select:
-                    - 2
-                    - Fn::Split:
-                      - "/"
-                      - !Ref AWS::StackId
+                  - 4
+                  - Fn::Split:
+                      - "-"
+                      - Fn::Select:
+                          - 2
+                          - Fn::Split:
+                              - "/"
+                              - !Ref AWS::StackId
     SuccessTopic:
       Type: AWS::SNS::Topic
       Properties:
