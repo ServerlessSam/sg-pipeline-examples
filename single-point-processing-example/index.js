@@ -5,11 +5,9 @@ const {
   DetectLabelsCommand,
 } = require("@aws-sdk/client-rekognition");
 
-const { S3Client, GetObjectCommand } = require("@aws-sdk/client-s3");
-
-const { Upload } = require("@aws-sdk/lib-storage");
-
-const Sharp = require('sharp');
+const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
+const { S3Client, GetObjectCommand, PutObjectCommand } = require("@aws-sdk/client-s3");
+const jimp = require('jimp');
 
 /**
  * Used to identify if a PNG is a dog or cat
@@ -58,36 +56,22 @@ async function dogOrCat(bucket_name, key) {
  * @returns {Promise<String>} full arn of new object in S3
  */
 const resize_and_save = async (bucket_name, key, animal) => {
-  try {
-    console.log("Entered resize");
-    console.log(bucket_name, key);
-    const client = new S3Client({ region: process.env.REGION });
-    const input = {
-      Bucket: bucket_name,
-      Key: key,
-    };
-    const getCommand = new GetObjectCommand(input);
-    const file = await client.send(getCommand);
-    console.log("Fetched File");
-    const streamResize = Sharp()
-          .resize(400, 400)
-          .toFormat('png')
-    const upload = new Upload({
-      client: client,
-      params: {
-        Bucket: bucket_name,
-        Key: "processed/" + animal + "/" + key.split("/").slice(-1)[0],
-        Body: file.Body.pipe(streamResize),
-        ContentType: "image/png",
-      },
-    });
-    const response = await upload.done();
-    console.log(response);
-    return "arn:aws:s3:::" + response.Bucket + "/" + response.Key;
-  } catch (error) {
-    console.log(error);
-    return null;
-  }
+  const client = new S3Client({ region: process.env.REGION });
+  const input = {
+    Bucket: bucket_name,
+    Key: key,
+  };
+  const command = new GetObjectCommand(input)
+  const viewUrl = await getSignedUrl(client, command, { expiresIn: 3600 })
+  console.log(viewUrl)
+  const image = await jimp.read(viewUrl);
+  const bufferData = await image.resize(400,400).getBufferAsync("image/" +"png")
+
+  // save resized image to S3 bucket
+  const destination_key = `${animal}/${key.split("/").pop()}`
+  await client.send(new PutObjectCommand({ Bucket: bucket_name, Key: destination_key, Body: bufferData }));
+  console.log(`Successfully resized and saved image ${destination_key}`);
+  return `arn:aws:s3:::${bucket_name}/${destination_key}`
 };
 
 /**
