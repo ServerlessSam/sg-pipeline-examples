@@ -92,8 +92,7 @@ const handler = async (event) => {
     event.Records[0].s3.object.key.replace(/\+/g, " ")
   );
 
-  //const animal = await dogOrCat(bucket, key);
-  const animal = "dog";
+  const animal = await dogOrCat(bucket, key);
   const new_resized_obj_arn = await resize_and_save(bucket, key, animal);
   persist_record_to_db(new_resized_obj_arn, animal);
 
